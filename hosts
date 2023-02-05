@@ -1,0 +1,17 @@
+#!/bin/bash
+# Created by:   Suraj C
+# Description:  Render a menu of hosts to connect to
+#               This is a wrapper script around the hosts_menu script
+
+THIS_SCRIPT=$(readlink -f $0)
+SCRIPT_DIR=$(dirname ${THIS_SCRIPT})
+
+HOSTS_FILE_DIR=${SCRIPT_DIR}
+
+${SCRIPT_DIR}/hosts_menu ${HOSTS_FILE_DIR}/main.hosts
+if [[ "$?" -ne 0 ]]; then
+  echo "> ERROR: Failed to invoke the menu script"
+  echo; exit1
+fi
+
+exit 0
