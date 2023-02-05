@@ -1,0 +1,112 @@
+#!/bin/bash
+# Created by: Suraj C
+# Description:  Menu based access to hosts and groups of hosts
+
+THIS_SCRIPT=$(readlink -f $0)
+SCRIPT_DIR=$(dirname ${THIS_SCRIPT})
+
+HOSTS_FILE=$1
+HOSTS_FILE_DIR=${SCRIPT_DIR}
+HOSTS_NAME_PATTERN="192*"; # <<<< FILL_IN_YOUR_HOST_NAME_PREFIX_OR_IP_PREFIX_HERE
+
+## LOGIN FUNCTION
+login(){
+  HOST=$1
+  
+  # add key to known_hosts
+  ssk-keygen -F ${HOST} >/dev/null||ssh-keyscan -H ${HOST} >> ~/.ssh/known_hosts
+  if [[ "$?" -ne 0 ]]; then
+    echo ">> ERROR: Unable to generate key for known_hosts"; echo; exit 1
+  fi
+  
+  # Try connection and retrieve hostname
+  RES=$(ssh -q -o ConnectTimeout=5 -o ConnectionAttempts=1 ${HOST} "hostname -s")
+  if [[ "$?" -ne 0 ]]; then
+    echo ">> WARN: Unable to ssh to this host: ${HOST}"; echo
+    
+    # Remote cmd execution did not work, try to copy-id to host
+    ssh-copy-id -i ~/.ssh/id_rsa.pub ${HOST}
+    if [[ "$?" -ne 0 ]]; then
+      echo ">> ERROR: Failed to run 'ssh-copy-id'. Host might be down. Investigate"; echo;
+      exit 1
+    fi
+    
+  fi
+  
+  # Connect as user
+  ssh -q ${HOST}
+  if [[ "$?" -ne 0 ]]; then
+    echo ">> ERROR: Unable to login to ${HOST}. Host might be down or other connection issue. Investigate"; echo;
+    exit 1
+}
+
+
+unset options i
+
+## Key check
+if [[ ! -f ~/.ssh/id_rsa.pub ]]; then
+  echo ">> ERROR: You are missing your public key. Please create it first using cmd: ssh-keygen"
+  echo; exit 1
+fi
+
+## Hosts file check
+if [[ -z ${HOSTS_FILE} ]]; then
+  echo ">> ERROR: Missing HOSTS_FILE name. You must have a text file that contains a list of group names, or host names"
+  echo; exit 1
+else
+   if [[ ! -f ${HOSTS_FILE} ]]; then
+     echo ">> ERROR: Missing HOSTS_FILE: ${HOSTS_FILE}. You must have a text file that contains a list of group names, or host names"
+     echo; exit 1
+   fi
+fi
+
+## LOAD HOST FILE CONTENTS
+while IFS="" read -r p || [ -n "$p" ]
+do
+  LINE=$(printf '%s\n' "$p")
+  options[i++]="$p"
+done < ${HOSTS_FILE}
+
+## LOOP OVER THE HOSTS FILE ENTRIES ##
+PS3='Please select one of the following: '
+select opt in "${options[@]"; do
+  case ${opt} in
+    "${opt}")
+       if [[ "${opt}" == "Quit" ]]; then
+         break
+         
+       elif [[ " ${options[*]} " != *" ${opt} "* ]]; then
+         echo ">> ERROR: Invalid option selected"
+         break
+         
+       elif [[ ${opt} != ${HOSTS_NAME_PATTERN} ]]; then
+         echo ">> Loading options for ${opt}"
+         if [[ ! -f ${HOSTS_FILE_DIR}/${opt}.hosts ]]; then
+           echo ">> ERROR: Missing hosts file --> ${opt}.hosts in dir: ${HOSTS_FILE_DIR}"
+           echo "          Please set it up first, with hostnames and try again"
+           echo
+           break
+         else
+           # RECURSIVE CALL TO THIS SCRIPT WITH THE ${opt}.hosts file
+           sh $0 ${HOSTS_FILE_DIR}/${opt}.hosts
+           break
+         fi
+         break
+         
+       else
+         ## LOGIN TO SELECTED HOST ##
+         echo "> Logging into ${opt}..."
+         login ${opt}
+       fi
+       break
+       ;;
+       
+     Quit)
+       break
+       ;;
+       
+     *) echo ">> Invalid option ${REPLY}";;
+  esac
+done
+
+exit 0
