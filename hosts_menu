@@ -20,8 +20,8 @@ login(){
   fi
   
   # Try connection and retrieve hostname
-  RES=$(ssh -q -o ConnectTimeout=5 -o ConnectionAttempts=1 ${HOST} "hostname -s")
-  if [[ "$?" -ne 0 ]]; then
+  RES=$(ssh -q -oPreferredAuthentications=publickey ${HOST} "hostname -s")
+  if [[ "${RES}" == "" ]]; then
     echo ">> WARN: Unable to ssh to this host: ${HOST}"; echo
     
     # Remote cmd execution did not work, try to copy-id to host
