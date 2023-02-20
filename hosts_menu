@@ -8,6 +8,7 @@ SCRIPT_DIR=$(dirname ${THIS_SCRIPT})
 HOSTS_FILE=$1
 HOSTS_FILE_DIR=${SCRIPT_DIR}
 HOSTS_NAME_PATTERN="192*"; # <<<< FILL_IN_YOUR_HOST_NAME_PREFIX_OR_IP_PREFIX_HERE
+PUBLIC_KEY=~/.ssh/id_rsa.pub
 
 ## LOGIN FUNCTION
 login(){
@@ -25,7 +26,7 @@ login(){
     echo ">> WARN: Unable to ssh to this host: ${HOST}"; echo
     
     # Remote cmd execution did not work, try to copy-id to host
-    ssh-copy-id -i ~/.ssh/id_rsa.pub ${HOST}
+    ssh-copy-id -i ${PUBLIC_KEY} ${HOST}
     if [[ "$?" -ne 0 ]]; then
       echo ">> ERROR: Failed to run 'ssh-copy-id'. Host might be down. Investigate"; echo;
       exit 1
@@ -44,7 +45,7 @@ login(){
 unset options i
 
 ## Key check
-if [[ ! -f ~/.ssh/id_rsa.pub ]]; then
+if [[ ! -f ${PUBLIC_KEY} ]]; then
   echo ">> ERROR: You are missing your public key. Please create it first using cmd: ssh-keygen"
   echo; exit 1
 fi
@@ -75,7 +76,7 @@ select opt in "${options[@]"; do
        if [[ "${opt}" == "Quit" ]]; then
          break
          
-       elif [[ " ${options[*]} " != *" ${opt} "* ]]; then
+       elif [[ " ${options[*]} " != *"${opt}"* ]]; then
          echo ">> ERROR: Invalid option selected"
          break
          
